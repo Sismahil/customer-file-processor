@@ -16,15 +16,62 @@ An additional automatic-trigger test confirmed that uploading a new `customers_c
 
 ## Architecture
 
-1. CSV uploaded to S3 `incoming/`.
-2. S3 Object Created event is delivered to EventBridge.
-3. EventBridge filters the project bucket and CSV objects under `incoming/`, then starts Step Functions with `bucket` and `key`.
-4. A Step Functions Standard workflow uses a Distributed Map to read the CSV directly from S3 and process each row.
-5. A Lambda validator checks all five rules and returns the row, `valid`, and all `reasons`.
-6. Valid rows are written to DynamoDB; invalid rows are written as JSON under S3 `errors/`.
-7. A summary Lambda counts the results and publishes an SNS email.
+The workflow is event-driven and serverless. Uploading a CSV to the S3 `incoming/` prefix starts the state machine automatically. A Distributed Map processes each CSV row independently, then routes valid and invalid records to their respective destinations.
 
-See [`architecture/architecture.mmd`](architecture/architecture.mmd).
+```mermaid
+flowchart TD
+    A[CSV upload<br/>Amazon S3 incoming/] --> B[Amazon EventBridge<br/>CSV object-created rule]
+    B --> C[AWS Step Functions<br/>Standard workflow]
+    C --> D[Distributed Map<br/>Read and iterate CSV rows]
+    D --> E[AWS Lambda<br/>Customer validator]
+    E --> F{Row valid?}
+    F -->|Yes| G[Amazon DynamoDB<br/>Valid customer records]
+    F -->|No| H[Amazon S3 errors/<br/>Invalid row and reasons]
+    G --> I[Map results]
+    H --> I
+    I --> J[AWS Lambda<br/>Summary handler]
+    J --> K[Amazon SNS<br/>Summary email]
+```
+
+The editable Mermaid source is also available at [`architecture/architecture.mmd`](architecture/architecture.mmd).
+
+### Processing sequence
+
+1. A CSV file is uploaded to S3 `incoming/`.
+2. S3 sends the object-created event to EventBridge.
+3. EventBridge filters for CSV files in `incoming/` and starts the Step Functions workflow with the bucket and key.
+4. Step Functions uses a Distributed Map to read and process each CSV row.
+5. The validator Lambda applies all five validation rules and returns every failure reason.
+6. Valid records are stored in DynamoDB; invalid records are saved as JSON in S3 `errors/`.
+7. The summary Lambda calculates totals and publishes the report through SNS.
+
+## Implementation screenshots
+
+The screenshots below provide evidence from the deployed AWS workflow and its test runs. They show the workflow configuration, persisted valid records, invalid-row handling, and the email summaries produced by SNS.
+
+### Step Functions workflow
+
+![Step Functions workflow design](docs/screenshots/02-step-functions-workflow-design.png)
+
+### Valid customer records in DynamoDB
+
+![DynamoDB valid customer records](docs/screenshots/03-dynamodb-valid-customer-records.png)
+
+### Clean-file processing results
+
+![Clean CSV Map results](docs/screenshots/04-clean-file-map-results.png)
+
+### Invalid records written to S3
+
+![Invalid customer records in S3 errors prefix](docs/screenshots/05-mixed-file-invalid-records-in-s3.png)
+
+### SNS processing summary emails
+
+| Clean file — 10 valid, 0 invalid | Mixed file — 7 valid, 5 invalid | Messy file — 4 valid, 11 invalid |
+|---|---|---|
+| ![Clean file SNS email](docs/screenshots/06-clean-summary-email.png) | ![Mixed file SNS email](docs/screenshots/07-mixed-summary-email.png) | ![Messy file SNS email](docs/screenshots/08-messy-summary-email.png) |
+
+Additional evidence, including the validator test and EventBridge configuration, is available in [`docs/screenshots/`](docs/screenshots/). See [`docs/test-results.md`](docs/test-results.md) for the complete test matrix.
 
 ## Validation rules
 
@@ -102,4 +149,5 @@ This repository documents the console-built implementation; it is not a one-comm
 - Review all IAM policies for least privilege.
 - Confirm bucket and topic names are acceptable to disclose before making the repository public.
 
-Run local validator tests with `pip install -r requirements-dev.txt` followed by `pytest`. See `docs/test-results.md`, `docs/ai-usage-log.md`, `docs/aws-resource-inventory.md`, and `docs/publishing-checklist.md`. Add sanitized screenshots under `docs/screenshots/`.
+Run local validator tests with `pip install -r requirements-dev.txt` followed by `pytest`. See `docs/test-results.md`, `docs/ai-usage-log.md`, `docs/aws-resource-inventory.md`, and `docs/publishing-checklist.md`. Sanitized implementation screenshots are included under `docs/screenshots/`. Review them for account identifiers, email addresses, execution IDs, and customer data before publishing.
+
