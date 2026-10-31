@@ -1,0 +1,28 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ManageDistributedMapChildExecutions",
+      "Effect": "Allow",
+      "Action": [
+        "states:StartExecution",
+        "states:DescribeExecution",
+        "states:StopExecution"
+      ],
+      "Resource": [
+        "arn:aws:states:<AWS_REGION>:<AWS_ACCOUNT_ID>:stateMachine:<STATE_MACHINE_NAME>",
+        "arn:aws:states:<AWS_REGION>:<AWS_ACCOUNT_ID>:execution:<STATE_MACHINE_NAME>:*"
+      ]
+    },
+    {
+      "Sid": "ManageDistributedMapEventBridgeRule",
+      "Effect": "Allow",
+      "Action": [
+        "events:PutTargets",
+        "events:PutRule",
+        "events:DescribeRule"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
