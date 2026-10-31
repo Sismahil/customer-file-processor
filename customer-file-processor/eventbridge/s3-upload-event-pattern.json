@@ -1,0 +1,22 @@
+{
+  "source": [
+    "aws.s3"
+  ],
+  "detail-type": [
+    "Object Created"
+  ],
+  "detail": {
+    "bucket": {
+      "name": [
+        "<S3_BUCKET_NAME>"
+      ]
+    },
+    "object": {
+      "key": [
+        {
+          "wildcard": "incoming/*.csv"
+        }
+      ]
+    }
+  }
+}

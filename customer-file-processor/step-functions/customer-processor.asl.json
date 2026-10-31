@@ -1,0 +1,116 @@
+{
+  "Comment": "Customer File Processor - Distributed CSV Map with SNS Summary",
+  "QueryLanguage": "JSONata",
+  "StartAt": "ProcessCustomerRows",
+  "States": {
+    "ProcessCustomerRows": {
+      "Type": "Map",
+      "Label": "ProcessCustomerRows",
+      "MaxConcurrency": 10,
+      "ItemReader": {
+        "Resource": "arn:aws:states:::s3:getObject",
+        "ReaderConfig": {
+          "InputType": "CSV",
+          "CSVHeaderLocation": "FIRST_ROW"
+        },
+        "Arguments": {
+          "Bucket": "{% $states.input.bucket %}",
+          "Key": "{% $states.input.key %}"
+        }
+      },
+      "ItemSelector": {
+        "row": "{% $states.context.Map.Item.Value %}",
+        "sourceKey": "{% $states.input.key %}",
+        "rowIndex": "{% $states.context.Map.Item.Index %}"
+      },
+      "ItemProcessor": {
+        "ProcessorConfig": {
+          "Mode": "DISTRIBUTED",
+          "ExecutionType": "STANDARD"
+        },
+        "StartAt": "ValidateCustomer",
+        "States": {
+          "ValidateCustomer": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::lambda:invoke",
+            "Arguments": {
+              "FunctionName": "<VALIDATOR_LAMBDA_NAME>",
+              "Payload": "{% $states.input.row %}"
+            },
+            "Output": "{% $merge([$states.input, $states.result.Payload]) %}",
+            "Next": "CheckCustomer"
+          },
+          "CheckCustomer": {
+            "Type": "Choice",
+            "Choices": [
+              {
+                "Condition": "{% $states.input.valid = true %}",
+                "Next": "SaveValidCustomer"
+              }
+            ],
+            "Default": "SaveInvalidCustomer"
+          },
+          "SaveValidCustomer": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::dynamodb:putItem",
+            "Arguments": {
+              "TableName": "<DYNAMODB_TABLE_NAME>",
+              "Item": {
+                "customerId": {
+                  "S": "{% $states.input.customerId %}"
+                },
+                "fullName": {
+                  "S": "{% $states.input.fullName %}"
+                },
+                "email": {
+                  "S": "{% $states.input.email %}"
+                },
+                "age": {
+                  "N": "{% $string($states.input.age) %}"
+                },
+                "country": {
+                  "S": "{% $states.input.country %}"
+                }
+              }
+            },
+            "Output": {
+              "valid": true,
+              "customerId": "{% $states.input.customerId %}"
+            },
+            "End": true
+          },
+          "SaveInvalidCustomer": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::aws-sdk:s3:putObject",
+            "Arguments": {
+              "Bucket": "<S3_BUCKET_NAME>",
+              "Key": "{% 'errors/' & $states.input.sourceKey & '/row-' & $string($states.input.rowIndex) & '.json' %}",
+              "Body": "{% $string($states.input) %}",
+              "ContentType": "application/json"
+            },
+            "Output": {
+              "valid": false,
+              "rowIndex": "{% $states.input.rowIndex %}"
+            },
+            "End": true
+          }
+        }
+      },
+      "Output": {
+        "fileName": "{% $states.input.key %}",
+        "results": "{% $states.result %}"
+      },
+      "Next": "SendSummary"
+    },
+    "SendSummary": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Arguments": {
+        "FunctionName": "<SUMMARY_LAMBDA_NAME>",
+        "Payload": "{% $states.input %}"
+      },
+      "Output": "{% $states.result.Payload %}",
+      "End": true
+    }
+  }
+}

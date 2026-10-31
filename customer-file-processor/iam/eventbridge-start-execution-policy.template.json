@@ -1,0 +1,13 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "StartCustomerProcessor",
+      "Effect": "Allow",
+      "Action": [
+        "states:StartExecution"
+      ],
+      "Resource": "arn:aws:states:<AWS_REGION>:<AWS_ACCOUNT_ID>:stateMachine:<STATE_MACHINE_NAME>"
+    }
+  ]
+}

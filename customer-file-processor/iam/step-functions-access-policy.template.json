@@ -1,0 +1,57 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ReadIncomingCsv",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject"
+      ],
+      "Resource": "arn:aws:s3:::<S3_BUCKET_NAME>/incoming/*"
+    },
+    {
+      "Sid": "ListIncomingPrefix",
+      "Effect": "Allow",
+      "Action": [
+        "s3:ListBucket"
+      ],
+      "Resource": "arn:aws:s3:::<S3_BUCKET_NAME>",
+      "Condition": {
+        "StringLike": {
+          "s3:prefix": [
+            "incoming",
+            "incoming/",
+            "incoming/*"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "WriteInvalidRows",
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutObject"
+      ],
+      "Resource": "arn:aws:s3:::<S3_BUCKET_NAME>/errors/*"
+    },
+    {
+      "Sid": "WriteValidCustomers",
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:PutItem"
+      ],
+      "Resource": "arn:aws:dynamodb:<AWS_REGION>:<AWS_ACCOUNT_ID>:table/<DYNAMODB_TABLE_NAME>"
+    },
+    {
+      "Sid": "InvokeProjectLambdas",
+      "Effect": "Allow",
+      "Action": [
+        "lambda:InvokeFunction"
+      ],
+      "Resource": [
+        "arn:aws:lambda:<AWS_REGION>:<AWS_ACCOUNT_ID>:function:<VALIDATOR_LAMBDA_NAME>",
+        "arn:aws:lambda:<AWS_REGION>:<AWS_ACCOUNT_ID>:function:<SUMMARY_LAMBDA_NAME>"
+      ]
+    }
+  ]
+}
