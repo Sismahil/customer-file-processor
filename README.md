@@ -141,13 +141,3 @@ This repository documents the console-built implementation; it is not a one-comm
 
 **Trigger safety:** Keep the EventBridge rule restricted to `incoming/*.csv`. Do not match `errors/`, or generated error JSON objects could trigger the workflow again.
 
-## Security before publishing
-
-- Never commit AWS credentials, secret keys, `.env` files, or private keys.
-- Do not commit real customer data.
-- Redact account IDs, email addresses, execution IDs, and customer data from screenshots.
-- Review all IAM policies for least privilege.
-- Confirm bucket and topic names are acceptable to disclose before making the repository public.
-
-Run local validator tests with `pip install -r requirements-dev.txt` followed by `pytest`. See `docs/test-results.md`, `docs/ai-usage-log.md`, `docs/aws-resource-inventory.md`, and `docs/publishing-checklist.md`. Sanitized implementation screenshots are included under `docs/screenshots/`. Review them for account identifiers, email addresses, execution IDs, and customer data before publishing.
-
